@@ -38,6 +38,7 @@
     border-radius:8px;background:#fff;width:100%}
   button{font:inherit;padding:9px 14px;border:0;border-radius:8px;background:var(--txt);
     color:#fff;cursor:pointer;white-space:nowrap}
+  button:disabled{opacity:.65;cursor:default}
   button.sub{background:#fff;color:var(--txt);border:1px solid var(--line)}
   button.mini{padding:4px 9px;font-size:12px;background:#fff;color:var(--txt);
     border:1px solid var(--line)}
@@ -71,6 +72,9 @@
   .chk input{width:auto}
   .f-name{flex:2 1 170px} .f-amt{flex:1 1 110px} .f-cur{flex:0 1 100px}
   .f-date{flex:1 1 125px} .f-cat{flex:1 1 110px} .f-memo{flex:2 1 150px}
+  #errBar{display:none;background:#fff5f5;border:1px solid var(--ng);color:var(--ng);
+    border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:13px;
+    white-space:pre-wrap;word-break:break-all}
   #pwaBar{position:fixed;left:0;right:0;bottom:0;z-index:999;display:none;
     gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;
     padding:12px 16px;background:var(--txt);color:#fff;font-size:14px;
@@ -85,6 +89,8 @@
 </head>
 <body>
 <div class="wrap">
+
+  <div id="errBar"></div>
 
   <div class="card">
     <div class="row between">
@@ -144,6 +150,7 @@
         <button id="saveTrip">保存</button>
       </div>
       <div class="muted" id="tMeta" style="margin-top:8px"></div>
+      <div class="muted" style="margin-top:4px">※ 基準通貨は選んだ時点で即反映されます（保存ボタン不要）</div>
     </div>
 
     <div class="card">
@@ -246,26 +253,38 @@
   <button class="go" id="pwaGo"></button><button class="no" id="pwaNo">あとで</button></div>
 
 <script>
+/* ===== エラーを画面に出す（不具合の原因が見えるように） ===== */
+function showErr(m){
+  const b=document.getElementById('errBar');
+  if(!b)return;
+  b.style.display='block';
+  b.textContent='エラーが発生しました：'+m+
+    '\nお手数ですが、この文章をそのままお知らせください。';
+}
+window.addEventListener('error',e=>showErr(e.message||'不明なエラー'));
+window.addEventListener('unhandledrejection',e=>showErr('通信処理：'+(e.reason&&e.reason.message||e.reason||'不明')));
+
+const $=id=>document.getElementById(id);
+
 const DKEY='travelBudget.v3', K2='travelBudget.v2', K1='travelBudget.v1', RKEY='travelBudget.rates.v1';
 const CATS=['交通','宿泊','食事','観光','買い物','通信','保険','その他'];
 const DEFCURS=['JPY','USD','EUR','GBP','AUD','TWD','KRW','THB','VND','CNY','HKD','SGD'];
 const SEED={JPY:1,USD:0.0068,EUR:0.0058,GBP:0.0050,AUD:0.0102,TWD:0.205,
             KRW:9.4,THB:0.216,VND:168,CNY:0.0483,HKD:0.0529,SGD:0.0087};
 const ZERO=['JPY','KRW','VND'];
-let db=loadDb(), R=loadRates(), phase='pre', view='detail';
+let db, R, phase='pre', view='detail';
 
-/* ---------- 基本ユーティリティ ---------- */
+/* ---------- ユーティリティ ---------- */
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const today=()=>new Date().toISOString().slice(0,10);
 const ym=d=>{d=d||new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');};
 function nextUpdate(){const d=new Date(),y=d.getMonth()===11?d.getFullYear()+1:d.getFullYear(),
   m=d.getMonth()===11?1:d.getMonth()+2;return y+'-'+String(m).padStart(2,'0')+'-01';}
-const esc=s=>String(s??'').replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
-
+const esc=s=>String(s==null?'':s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
 function newTripObj(n){return {id:uid(),name:n||'新しい旅程',dest:'',start:'',end:'',
   budget:0,base:'JPY',items:[],createdAt:new Date().toISOString()};}
 
-/* ---------- 保存・読込・移行 ---------- */
+/* ---------- 保存・読込・旧版からの移行 ---------- */
 function loadDb(){
   const def={v:3,curs:DEFCURS.slice(),live:false,disp:'JPY',activeId:'',trips:[]};
   try{const d=JSON.parse(localStorage.getItem(DKEY));if(d&&d.trips)return Object.assign(def,d);}catch(e){}
@@ -280,7 +299,7 @@ function loadDb(){
     const o=JSON.parse(localStorage.getItem(K1));
     if(o&&o.items){const t=newTripObj(o.name||'旅程1');
       t.budget=+o.budget||0;t.base=o.cur||'JPY';
-      t.items=o.items.map(i=>({...i,cur:t.base,fx:1,baseAmt:+i.amount||0,fxMonth:''}));
+      t.items=o.items.map(i=>Object.assign({},i,{cur:t.base,fx:1,baseAmt:+i.amount||0,fxMonth:''}));
       return Object.assign(def,{disp:t.base,activeId:t.id,trips:[t]});}
   }catch(e){}
   const t=newTripObj('旅程1'); def.trips=[t]; def.activeId=t.id; return def;
@@ -289,8 +308,9 @@ function loadRates(){
   try{const r=JSON.parse(localStorage.getItem(RKEY));if(r&&r.rates)return r;}catch(e){}
   return {anchor:'JPY',rates:Object.assign({},SEED),month:'',updatedAt:'',source:'初期値（目安）'};
 }
-const saveDb=()=>localStorage.setItem(DKEY,JSON.stringify(db));
-const saveRates=()=>localStorage.setItem(RKEY,JSON.stringify(R));
+function saveDb(){try{localStorage.setItem(DKEY,JSON.stringify(db));}
+  catch(e){showErr('保存できませんでした（プライベートモードでは保存されません）');}}
+function saveRates(){try{localStorage.setItem(RKEY,JSON.stringify(R));}catch(e){}}
 
 function trip(){
   let t=db.trips.find(x=>x.id===db.activeId);
@@ -300,19 +320,20 @@ function trip(){
 }
 function sortedTrips(){
   return db.trips.slice().sort((a,b)=>{
-    if(!a.start&&!b.start)return (a.createdAt||'').localeCompare(b.createdAt||'');
+    if(!a.start&&!b.start)return String(a.createdAt||'').localeCompare(String(b.createdAt||''));
     if(!a.start)return 1; if(!b.start)return -1;
     return a.start.localeCompare(b.start);
   });
 }
-function status(t){
+/* ※ status / days はブラウザ標準の名前と衝突するため tripStatus / tripDays に変更 */
+function tripStatus(t){
   const d=today();
   if(t.end&&t.end<d)return {k:'done',l:'終了'};
   if(t.start&&t.start<=d&&(!t.end||t.end>=d))return {k:'now',l:'旅行中'};
   if(t.start&&t.start>d)return {k:'plan',l:'予定'};
   return {k:'plan',l:'未設定'};
 }
-function days(t){
+function tripDays(t){
   if(!t.start||!t.end)return '';
   const n=Math.round((new Date(t.end)-new Date(t.start))/86400000);
   return n>=0?(n+1)+'日間（'+n+'泊）':'';
@@ -321,7 +342,7 @@ function days(t){
 /* ---------- 通貨・換算 ---------- */
 function money(n,cur){
   cur=cur||trip().base;
-  const d=ZERO.includes(cur)?0:2;
+  const d=ZERO.indexOf(cur)>=0?0:2;
   try{return new Intl.NumberFormat('ja-JP',{style:'currency',currency:cur,
     minimumFractionDigits:d,maximumFractionDigits:d}).format(n||0);}
   catch(e){return (n||0).toLocaleString('ja-JP',{maximumFractionDigits:d})+' '+cur;}
@@ -344,29 +365,29 @@ function totals(t){
 }
 const sum=ph=>trip().items.filter(i=>i.phase===ph).reduce((s,i)=>s+baseOf(i),0);
 
-/* ---------- レート更新（月1回） ---------- */
+/* ---------- レート（月1回更新） ---------- */
 async function fetchRates(){
-  rateMsg.textContent='レートを取得中…';
+  $('rateMsg').textContent='レートを取得中…';
   try{
     const res=await fetch('https://open.er-api.com/v6/latest/'+(R.anchor||'JPY'),{cache:'no-store'});
     const j=await res.json();
-    if(!j||j.result!=='success'||!j.rates)throw 0;
+    if(!j||j.result!=='success'||!j.rates)throw new Error('bad response');
     db.curs.forEach(c=>{ if(j.rates[c]!=null) R.rates[c]=j.rates[c]; });
     R.rates[R.anchor]=1; R.month=ym();
-    R.updatedAt=(j.time_last_update_utc||new Date().toString()).slice(0,25);
+    R.updatedAt=String(j.time_last_update_utc||new Date()).slice(0,25);
     R.source='open.er-api.com'; saveRates(); render();
-    rateMsg.textContent='今月分のレートに更新しました。';
+    $('rateMsg').textContent='今月分のレートに更新しました。';
   }catch(e){
-    rateMsg.textContent='自動取得に失敗しました（通信環境をご確認ください）。「レート表」から手入力できます。';
+    $('rateMsg').textContent='自動取得に失敗しました（通信環境をご確認ください）。「レート表」から手入力できます。';
   }
 }
 function renderRates(){
   const t=trip(), stale=R.month!==ym();
-  fxBox.classList.toggle('stale',stale);
-  fxStatus.innerHTML='基準通貨：<b>'+t.base+'</b> ／ 適用月：<b>'+(R.month||'未取得')+'</b> ／ 取得元：'+
+  $('fxBox').classList.toggle('stale',stale);
+  $('fxStatus').innerHTML='基準通貨：<b>'+t.base+'</b> ／ 適用月：<b>'+(R.month||'未取得')+'</b> ／ 取得元：'+
     esc(R.source)+(R.updatedAt?' ／ 最終更新：'+esc(R.updatedAt):'')+
     '<br>次回の自動更新：'+nextUpdate()+(stale?'　<b style="color:#e67700">今月のレートが未取得です</b>':'');
-  fxBody.innerHTML=db.curs.map(c=>{
+  $('fxBody').innerHTML=db.curs.map(c=>{
     const f=fxTo(c,t.base);
     return '<tr><td><b>'+c+'</b></td><td class="num">'+
       (c===t.base?'<span class="muted">基準（1.0000）</span>':
@@ -376,28 +397,44 @@ function renderRates(){
 }
 
 /* ---------- 描画 ---------- */
-const fill=(el,arr,val)=>el.innerHTML=arr.map(v=>'<option'+(v===val?' selected':'')+'>'+v+'</option>').join('');
+/* 操作中のセレクトは書き換えない（選択が勝手に戻るのを防止） */
+function fillKeep(el,arr,val){
+  const sig=arr.join('|');
+  if(el.dataset.sig!==sig){
+    el.innerHTML=arr.map(v=>'<option>'+v+'</option>').join('');
+    el.dataset.sig=sig;
+  }
+  if(document.activeElement!==el&&val!=null)el.value=val;
+}
+function flash(btn,text){
+  const o=btn.dataset.orig||btn.textContent;
+  btn.dataset.orig=o; btn.textContent=text; btn.disabled=true;
+  setTimeout(()=>{btn.textContent=o;btn.disabled=false;},1300);
+}
 
 function render(){
-  const t=trip();
-  viewList.hidden=view!=='list'; viewDetail.hidden=view!=='detail';
-  toList.textContent=view==='list'?'選択中の旅程を開く':'旅程一覧';
+  try{
+    const t=trip();
+    $('viewList').hidden=view!=='list'; $('viewDetail').hidden=view!=='detail';
+    $('toList').textContent=view==='list'?'選択中の旅程を開く':'旅程一覧';
 
-  tripSel.innerHTML=sortedTrips().map(x=>{
-    const st=status(x);
-    return '<option value="'+x.id+'"'+(x.id===t.id?' selected':'')+'>'+
-      esc(x.name)+(x.start?'（'+x.start.slice(5).replace('-','/')+'〜）':'')+' ['+st.l+']</option>';
-  }).join('');
-  fill(dispCur,db.curs,db.disp); dispLbl.textContent=db.disp;
-  live.checked=!!db.live;
+    const sel=$('tripSel');
+    sel.innerHTML=sortedTrips().map(x=>{
+      const st=tripStatus(x);
+      return '<option value="'+x.id+'"'+(x.id===t.id?' selected':'')+'>'+
+        esc(x.name)+(x.start?'（'+x.start.slice(5).replace('-','/')+'〜）':'')+' ['+st.l+']</option>';
+    }).join('');
+    fillKeep($('dispCur'),db.curs,db.disp);
+    $('live').checked=!!db.live;
 
-  view==='list'?renderList():renderDetail();
+    view==='list'?renderList():renderDetail();
+  }catch(e){showErr(e.message);}
 }
 
 function renderList(){
   const dc=db.disp, g={budget:0,pre:0,trip:0,total:0,left:0}; let warn=false;
-  listBody.innerHTML=sortedTrips().map(t=>{
-    const v=totals(t), st=status(t), f=fxTo(t.base,dc);
+  $('listBody').innerHTML=sortedTrips().map(t=>{
+    const v=totals(t), st=tripStatus(t), f=fxTo(t.base,dc);
     if(f==null)warn=true; else {g.budget+=v.budget*f;g.pre+=v.pre*f;g.trip+=v.trip*f;
       g.total+=v.total*f;g.left+=v.left*f;}
     return '<tr'+(t.id===db.activeId?' class="cur"':'')+'>'+
@@ -405,7 +442,7 @@ function renderList(){
         '<span class="sml">'+(esc(t.dest)||'行き先未設定')+' ／ '+t.base+
         (t.items.length?' ／ '+t.items.length+'件':'')+'</span></td>'+
       '<td class="muted">'+(t.start||'-')+'<br>〜 '+(t.end||'-')+
-        (days(t)?'<span class="sml">'+days(t)+'</span>':'')+'</td>'+
+        (tripDays(t)?'<span class="sml">'+tripDays(t)+'</span>':'')+'</td>'+
       '<td class="num">'+(v.budget?money(v.budget,t.base):'—')+'</td>'+
       '<td class="num">'+money(v.pre,t.base)+'</td>'+
       '<td class="num">'+money(v.trip,t.base)+'</td>'+
@@ -417,38 +454,50 @@ function renderList(){
         '<button class="mini" data-dup="'+t.id+'">複製</button> '+
         '<button class="mini dl" data-del="'+t.id+'">削除</button></td></tr>';
   }).join('');
-  listEmpty.hidden=db.trips.length>0;
-  gBudget.textContent=money(g.budget,dc); gPre.textContent=money(g.pre,dc);
-  gTrip.textContent=money(g.trip,dc); gTotal.textContent=money(g.total,dc);
-  gLeft.textContent=money(g.left,dc); gLeft.style.color=g.left<0?'var(--ng)':'var(--ok)';
-  dispLbl.innerHTML=dc+(warn?' <span class="muted">※レート未設定の通貨は合算から除外</span>':'');
+  $('listEmpty').hidden=db.trips.length>0;
+  $('gBudget').textContent=money(g.budget,dc); $('gPre').textContent=money(g.pre,dc);
+  $('gTrip').textContent=money(g.trip,dc); $('gTotal').textContent=money(g.total,dc);
+  const gl=$('gLeft'); gl.textContent=money(g.left,dc);
+  gl.style.color=g.left<0?'var(--ng)':'var(--ok)';
+  $('dispLbl').innerHTML=dc+(warn?' <span class="muted">※レート未設定の通貨は合算から除外</span>':'');
 }
 
 function renderDetail(){
   const t=trip();
-  tName.value=t.name; tDest.value=t.dest||''; tStart.value=t.start||''; tEnd.value=t.end||'';
-  tBudget.value=t.budget||''; fill(tBase,db.curs,t.base);
-  fill(iCur,db.curs,iCur.value&&db.curs.includes(iCur.value)?iCur.value:t.base);
-  if(!iCat.options.length)fill(iCat,CATS,CATS[0]);
-  const st=status(t);
-  dTitle.innerHTML=esc(t.name)+' <span class="bdg '+st.k+'">'+st.l+'</span>';
-  tMeta.textContent=[t.dest,days(t),'記録 '+t.items.length+'件'].filter(Boolean).join(' ／ ');
+  $('tName').value=t.name; $('tDest').value=t.dest||'';
+  $('tStart').value=t.start||''; $('tEnd').value=t.end||'';
+  $('tBudget').value=t.budget||'';
+  fillKeep($('tBase'),db.curs,t.base);
+
+  const iCur=$('iCur');
+  const keep=iCur.value&&db.curs.indexOf(iCur.value)>=0&&iCur.value!==iCur.dataset.prevBase;
+  fillKeep(iCur,db.curs,keep?iCur.value:t.base);
+  iCur.dataset.prevBase=t.base;
+
+  const iCat=$('iCat');
+  if(!iCat.options.length)fillKeep(iCat,CATS,CATS[0]);
+
+  const st=tripStatus(t);
+  $('dTitle').innerHTML=esc(t.name)+' <span class="bdg '+st.k+'">'+st.l+'</span>';
+  $('tMeta').textContent=[t.dest,tripDays(t),'記録 '+t.items.length+'件'].filter(Boolean).join(' ／ ');
   renderRates(); renderConv();
 
   const p=sum('pre'), r=sum('trip'), b=+t.budget||0, total=p+r, left=b-total;
-  sBudget.textContent=b?money(b):'未設定';
-  sPre.textContent=money(p); sTrip.textContent=money(r);
-  cPre.textContent=t.items.filter(i=>i.phase==='pre').length+'件';
-  cTrip.textContent=t.items.filter(i=>i.phase==='trip').length+'件';
-  sLeft.textContent=b?money(left):'—';
-  sLeft.style.color=left<0?'var(--ng)':'var(--ok)';
-  sRate.textContent=b?'消化率 '+Math.round(total/b*100)+'%'+(left<0?'（予算超過）':''):'総支出 '+money(total);
-  barPre.style.width=(b?Math.min(p/b*100,100):0)+'%';
-  barTrip.style.width=(b?Math.min(r/b*100,Math.max(100-p/b*100,0)):0)+'%';
+  $('sBudget').textContent=b?money(b):'未設定';
+  $('sPre').textContent=money(p); $('sTrip').textContent=money(r);
+  $('cPre').textContent=t.items.filter(i=>i.phase==='pre').length+'件';
+  $('cTrip').textContent=t.items.filter(i=>i.phase==='trip').length+'件';
+  const sl=$('sLeft');
+  sl.textContent=b?money(left):'—';
+  sl.style.color=left<0?'var(--ng)':'var(--ok)';
+  $('sRate').textContent=b?'消化率 '+Math.round(total/b*100)+'%'+(left<0?'（予算超過）':''):'総支出 '+money(total);
+  $('barPre').style.width=(b?Math.min(p/b*100,100):0)+'%';
+  $('barTrip').style.width=(b?Math.min(r/b*100,Math.max(100-p/b*100,0)):0)+'%';
 
-  listTitle.textContent=(phase==='pre'?'旅行前（支払い済み）':'旅行中（実際の支出）')+'の明細';
-  const rows=t.items.filter(i=>i.phase===phase).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
-  tbody.innerHTML=rows.map(i=>{
+  $('listTitle').textContent=(phase==='pre'?'旅行前（支払い済み）':'旅行中（実際の支出）')+'の明細';
+  const rows=t.items.filter(i=>i.phase===phase)
+    .sort((a,b)=>String(a.date||'').localeCompare(String(b.date||'')));
+  $('tbody').innerHTML=rows.map(i=>{
     const same=i.cur===t.base, used=db.live?fxTo(i.cur,t.base):(+i.fx||1);
     return '<tr><td>'+(i.date||'-')+'</td><td>'+esc(i.name)+'</td>'+
       '<td><span class="tag">'+esc(i.cat)+'</span></td>'+
@@ -458,18 +507,18 @@ function renderDetail(){
       '<td class="muted">'+esc(i.memo||'')+'</td>'+
       '<td class="num"><button class="mini dl" data-x="'+i.id+'">削除</button></td></tr>';
   }).join('');
-  empty.hidden=rows.length>0;
-  tFoot.textContent=money(sum(phase));
+  $('empty').hidden=rows.length>0;
+  $('tFoot').textContent=money(sum(phase));
 
-  catBody.innerHTML=CATS.map(c=>{
+  $('catBody').innerHTML=CATS.map(c=>{
     const a=t.items.filter(i=>i.cat===c&&i.phase==='pre').reduce((s,i)=>s+baseOf(i),0);
     const d=t.items.filter(i=>i.cat===c&&i.phase==='trip').reduce((s,i)=>s+baseOf(i),0);
     return (a+d)?'<tr><td>'+c+'</td><td class="num">'+money(a)+'</td><td class="num">'+money(d)+
       '</td><td class="num"><b>'+money(a+d)+'</b></td></tr>':'';
   }).join('')||'<tr><td colspan="4" class="muted">データなし</td></tr>';
 
-  const used=[...new Set(t.items.map(i=>i.cur))];
-  curBody.innerHTML=used.map(c=>{
+  const usedCurs=t.items.map(i=>i.cur).filter((v,idx,arr)=>arr.indexOf(v)===idx);
+  $('curBody').innerHTML=usedCurs.map(c=>{
     const l=t.items.filter(i=>i.cur===c);
     return '<tr><td><b>'+c+'</b></td><td class="num">'+money(l.reduce((s,i)=>s+(+i.amount||0),0),c)+
       '</td><td class="num">'+money(l.reduce((s,i)=>s+baseOf(i),0))+
@@ -477,40 +526,18 @@ function renderDetail(){
   }).join('')||'<tr><td colspan="4" class="muted">データなし</td></tr>';
 }
 function renderConv(){
-  const t=trip(), a=+iAmt.value, c=iCur.value;
-  if(!a||c===t.base){conv.textContent='';return;}
+  const t=trip(), a=+$('iAmt').value, c=$('iCur').value, el=$('conv');
+  if(!a||c===t.base){el.textContent='';return;}
   const f=fxTo(c,t.base);
-  conv.textContent=f==null?'※ '+c+' のレートが未設定です。「レート表」で設定してください。'
+  el.textContent=f==null?'※ '+c+' のレートが未設定です。「レート表」で設定してください。'
     :'換算：'+money(a,c)+' ≒ '+money(a*f,t.base)+'（1 '+c+' = '+(+f.toFixed(4))+' '+t.base+'）';
 }
 
-/* ---------- 旅程の操作 ---------- */
-tripSel.onchange=()=>{db.activeId=tripSel.value;view='detail';saveDb();setDefaultDate();render();};
-toList.onclick=()=>{view=view==='list'?'detail':'list';render();window.scrollTo(0,0);};
-newTrip.onclick=()=>{
-  const t=newTripObj('新しい旅程'); const c=trip();
-  t.base=c?c.base:'JPY';
-  db.trips.push(t); db.activeId=t.id; view='detail'; saveDb(); setDefaultDate(); render();
-  tName.focus(); tName.select(); window.scrollTo(0,0);
-};
-saveTrip.onclick=()=>{
-  const t=trip(), nb=tBase.value;
-  if(nb!==t.base&&t.items.length&&
-    !confirm('基準通貨を '+t.base+' → '+nb+' に変更します。\n既存の記録を現在のレートで再換算しますか？'))
-    {tBase.value=t.base;return;}
-  if(tStart.value&&tEnd.value&&tEnd.value<tStart.value){alert('帰着日は出発日以降にしてください');return;}
-  t.name=tName.value.trim()||'名称未設定'; t.dest=tDest.value.trim();
-  t.start=tStart.value; t.end=tEnd.value; t.budget=+tBudget.value||0;
-  if(nb!==t.base){ t.base=nb;
-    t.items.forEach(i=>{const f=fxTo(i.cur,nb);if(f!=null){i.fx=f;i.baseAmt=(+i.amount||0)*f;i.fxMonth=R.month||ym();}});}
-  saveDb(); render();
-};
-dupTrip.onclick=()=>{
-  const t=trip(), c=JSON.parse(JSON.stringify(t));
-  c.id=uid(); c.name=t.name+'（コピー）'; c.createdAt=new Date().toISOString();
-  c.items=c.items.map(i=>({...i,id:uid()}));
-  db.trips.push(c); db.activeId=c.id; saveDb(); render(); window.scrollTo(0,0);
-};
+/* ---------- イベント登録 ---------- */
+function setDefaultDate(){
+  const t=trip();
+  $('iDate').value=(phase==='trip'&&t.start)?(t.start>today()?t.start:today()):today();
+}
 function removeTrip(id){
   const t=db.trips.find(x=>x.id===id); if(!t)return;
   if(!confirm('「'+t.name+'」を削除します（記録 '+t.items.length+'件）。\nこの操作は取り消せません。'))return;
@@ -519,65 +546,154 @@ function removeTrip(id){
   if(db.activeId===id)db.activeId=db.trips[0].id;
   saveDb(); render();
 }
-delTrip.onclick=()=>removeTrip(db.activeId);
-listBody.onclick=e=>{
-  const o=e.target.dataset.open, d=e.target.dataset.dup, x=e.target.dataset.del;
-  if(o){db.activeId=o;view='detail';saveDb();setDefaultDate();render();window.scrollTo(0,0);}
-  if(d){const s=db.trips.find(t=>t.id===d),c=JSON.parse(JSON.stringify(s));
-    c.id=uid();c.name=s.name+'（コピー）';c.createdAt=new Date().toISOString();
-    c.items=c.items.map(i=>({...i,id:uid()}));db.trips.push(c);saveDb();render();}
-  if(x)removeTrip(x);
-};
-dispCur.onchange=()=>{db.disp=dispCur.value;saveDb();render();};
-
-/* ---------- 支出の操作 ---------- */
-document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{
-  phase=b.dataset.ph;
-  document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on',x===b));
-  setDefaultDate(); render();
-});
-add.onclick=()=>{
-  const t=trip(), name=iName.value.trim(), amt=+iAmt.value, cur=iCur.value, f=fxTo(cur,t.base);
-  if(!name||!(amt>=0)){alert('項目名と金額を入力してください');return;}
-  if(f==null){alert(cur+' のレートが未設定です。「レート表」で設定してください。');return;}
-  t.items.push({id:uid(),phase,date:iDate.value,name,cat:iCat.value,amount:amt,cur,
-    fx:f,baseAmt:amt*f,fxMonth:R.month||ym(),memo:iMemo.value.trim()});
-  saveDb(); iName.value='';iAmt.value='';iMemo.value=''; iName.focus(); render();
-};
-iAmt.oninput=renderConv; iCur.onchange=renderConv;
-tbody.onclick=e=>{const id=e.target.dataset.x;
-  if(id&&confirm('この記録を削除しますか？')){const t=trip();
-    t.items=t.items.filter(i=>i.id!==id);saveDb();render();}};
-function setDefaultDate(){
-  const t=trip();
-  iDate.value=(phase==='trip'&&t.start)?(t.start>today()?t.start:today()):today();
+function dupTripById(id){
+  const s=db.trips.find(t=>t.id===id); if(!s)return;
+  const c=JSON.parse(JSON.stringify(s));
+  c.id=uid(); c.name=s.name+'（コピー）'; c.createdAt=new Date().toISOString();
+  c.items=c.items.map(i=>Object.assign({},i,{id:uid()}));
+  db.trips.push(c); return c;
 }
 
-/* ---------- レート操作 ---------- */
-live.onchange=()=>{db.live=live.checked;saveDb();render();};
-fxUpdate.onclick=()=>fetchRates();
-fxToggle.onclick=()=>{fxPanel.hidden=!fxPanel.hidden;};
-fxBody.onchange=e=>{
-  const c=e.target.dataset.fx; if(!c)return;
-  const v=+e.target.value;
-  if(!(v>0)){alert('0より大きい数値を入力してください');render();return;}
-  R.rates[c]=R.rates[trip().base]/v; R.source='手動設定'; R.month=ym();
-  R.updatedAt=new Date().toLocaleString('ja-JP'); saveRates(); render();
-};
-addCur.onclick=()=>{
-  const code=newCode.value.trim().toUpperCase(), v=+newRate.value;
-  if(!/^[A-Z]{3}$/.test(code)){alert('通貨コードは英字3文字で入力してください（例：PHP）');return;}
-  if(!(v>0)){alert('1通貨あたりの基準通貨額を入力してください');return;}
-  if(!db.curs.includes(code))db.curs.push(code);
-  R.rates[code]=R.rates[trip().base]/v;
-  newCode.value='';newRate.value=''; saveDb();saveRates();render();
-};
+function bind(){
+  $('tripSel').addEventListener('change',e=>{
+    db.activeId=e.target.value;view='detail';saveDb();setDefaultDate();render();});
+  $('toList').addEventListener('click',()=>{
+    view=view==='list'?'detail':'list';render();window.scrollTo(0,0);});
+  $('newTrip').addEventListener('click',()=>{
+    const cur=trip(), t=newTripObj('新しい旅程');
+    t.base=cur?cur.base:'JPY';
+    db.trips.push(t); db.activeId=t.id; view='detail'; saveDb(); setDefaultDate(); render();
+    $('tName').focus(); $('tName').select(); window.scrollTo(0,0);});
 
-/* ---------- 書き出し・読み込み ---------- */
-const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
+  $('saveTrip').addEventListener('click',()=>{
+    const t=trip();
+    if($('tStart').value&&$('tEnd').value&&$('tEnd').value<$('tStart').value){
+      alert('帰着日は出発日以降にしてください');return;}
+    t.name=$('tName').value.trim()||'名称未設定'; t.dest=$('tDest').value.trim();
+    t.start=$('tStart').value; t.end=$('tEnd').value; t.budget=+$('tBudget').value||0;
+    saveDb(); render(); flash($('saveTrip'),'保存しました');});
+
+  /* 基準通貨：選んだ瞬間に反映 */
+  $('tBase').addEventListener('change',()=>{
+    const t=trip(), ob=t.base, nb=$('tBase').value;
+    if(nb===ob)return;
+    const need=[ob].concat(t.items.map(i=>i.cur)).filter((v,i,a)=>a.indexOf(v)===i);
+    const miss=need.filter(c=>fxTo(c,nb)==null);
+    if(miss.length){
+      alert('次の通貨のレートが未設定のため変更できません：'+miss.join(', ')+
+        '\n\n「今すぐ更新」を実行するか、「レート表」で手入力してください。');
+      $('tBase').value=ob; return;
+    }
+    const fb=fxTo(ob,nb);
+    if(t.items.length||t.budget){
+      if(!confirm('基準通貨を '+ob+' → '+nb+' に変更します。\n\n'+
+        '・記録 '+t.items.length+'件を現在のレートで再換算します\n'+
+        (t.budget?'・総予算 '+money(t.budget,ob)+' → '+money(t.budget*fb,nb)+'\n':'')+
+        '\n実行しますか？')){ $('tBase').value=ob; return; }
+    }
+    t.base=nb;
+    if(t.budget)t.budget=Math.round(t.budget*fb*100)/100;
+    t.items.forEach(i=>{const f=fxTo(i.cur,nb);
+      if(f!=null){i.fx=f;i.baseAmt=(+i.amount||0)*f;i.fxMonth=R.month||ym();}});
+    saveDb(); render(); flash($('saveTrip'),nb+' に変更しました');});
+
+  $('dupTrip').addEventListener('click',()=>{
+    const c=dupTripById(db.activeId);
+    if(c){db.activeId=c.id;saveDb();render();window.scrollTo(0,0);}});
+  $('delTrip').addEventListener('click',()=>removeTrip(db.activeId));
+
+  $('listBody').addEventListener('click',e=>{
+    const o=e.target.dataset.open, d=e.target.dataset.dup, x=e.target.dataset.del;
+    if(o){db.activeId=o;view='detail';saveDb();setDefaultDate();render();window.scrollTo(0,0);}
+    if(d){dupTripById(d);saveDb();render();}
+    if(x)removeTrip(x);});
+  $('dispCur').addEventListener('change',e=>{db.disp=e.target.value;saveDb();render();});
+
+  document.querySelectorAll('.tabs button').forEach(b=>{
+    b.addEventListener('click',()=>{
+      phase=b.dataset.ph;
+      document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on',x===b));
+      setDefaultDate(); render();});});
+
+  $('add').addEventListener('click',()=>{
+    const t=trip(), nm=$('iName').value.trim(), amt=+$('iAmt').value,
+          cur=$('iCur').value, f=fxTo(cur,t.base);
+    if(!nm||!(amt>=0)){alert('項目名と金額を入力してください');return;}
+    if(f==null){alert(cur+' のレートが未設定です。「レート表」で設定してください。');return;}
+    t.items.push({id:uid(),phase:phase,date:$('iDate').value,name:nm,cat:$('iCat').value,
+      amount:amt,cur:cur,fx:f,baseAmt:amt*f,fxMonth:R.month||ym(),memo:$('iMemo').value.trim()});
+    saveDb(); $('iName').value='';$('iAmt').value='';$('iMemo').value='';
+    $('iName').focus(); render();});
+  $('iAmt').addEventListener('input',renderConv);
+  $('iCur').addEventListener('change',renderConv);
+  $('tbody').addEventListener('click',e=>{
+    const id=e.target.dataset.x;
+    if(id&&confirm('この記録を削除しますか？')){
+      const t=trip(); t.items=t.items.filter(i=>i.id!==id); saveDb(); render();}});
+
+  $('live').addEventListener('change',e=>{db.live=e.target.checked;saveDb();render();});
+  $('fxUpdate').addEventListener('click',fetchRates);
+  $('fxToggle').addEventListener('click',()=>{$('fxPanel').hidden=!$('fxPanel').hidden;});
+  $('fxBody').addEventListener('change',e=>{
+    const c=e.target.dataset.fx; if(!c)return;
+    const v=+e.target.value;
+    if(!(v>0)){alert('0より大きい数値を入力してください');render();return;}
+    R.rates[c]=R.rates[trip().base]/v; R.source='手動設定'; R.month=ym();
+    R.updatedAt=new Date().toLocaleString('ja-JP'); saveRates(); render();});
+  $('addCur').addEventListener('click',()=>{
+    const code=$('newCode').value.trim().toUpperCase(), v=+$('newRate').value;
+    if(!/^[A-Z]{3}$/.test(code)){alert('通貨コードは英字3文字で入力してください（例：PHP）');return;}
+    if(!(v>0)){alert('1通貨あたりの基準通貨額を入力してください');return;}
+    if(db.curs.indexOf(code)<0)db.curs.push(code);
+    R.rates[code]=R.rates[trip().base]/v;
+    $('newCode').value='';$('newRate').value=''; saveDb();saveRates();render();});
+
+  $('csv').addEventListener('click',()=>{
+    const t=trip(), v=totals(t);
+    const line=(l,n)=>'\n'+[t.name,'','',l,'','','',''].map(q).join(',')+','+
+      q(Math.round(n*100)/100)+','+q(t.base)+',,';
+    dl('\ufeff'+CSVHEAD+csvRows(t).join('\n')+line('旅行前合計',v.pre)+line('旅行中合計',v.trip)+
+      line('総支出',v.total)+line('残予算',v.left),(t.name||'旅行予算')+'.csv');});
+  $('csvAll').addEventListener('click',()=>{
+    let out=CSVHEAD;
+    sortedTrips().forEach(t=>{
+      const v=totals(t);
+      out+=csvRows(t).join('\n')+'\n'+[t.name,'','','【小計】総支出','','','',''].map(q).join(',')+
+        ','+q(Math.round(v.total*100)/100)+','+q(t.base)+',,\n';});
+    dl('\ufeff'+out,'全旅程_旅行予算.csv');});
+  $('expJson').addEventListener('click',()=>dl(
+    JSON.stringify({db:db,rates:R,exportedAt:new Date().toISOString()},null,2),
+    '旅行予算_バックアップ_'+today()+'.json','application/json'));
+  $('impBtn').addEventListener('click',()=>$('impFile').click());
+  $('impFile').addEventListener('change',e=>{
+    const f=e.target.files[0]; if(!f)return;
+    const rd=new FileReader();
+    rd.onload=()=>{
+      try{
+        const j=JSON.parse(rd.result), d=j.db||j;
+        if(!d||!d.trips)throw new Error('形式が違います');
+        if(!confirm('バックアップを読み込みます。現在のデータは上書きされます。よろしいですか？'))return;
+        db=Object.assign({v:3,curs:DEFCURS.slice(),live:false,disp:'JPY',activeId:'',trips:[]},d);
+        if(j.rates&&j.rates.rates){R=j.rates;saveRates();}
+        saveDb(); view='list'; render();
+        alert('読み込みが完了しました（旅程 '+db.trips.length+'件）。');
+      }catch(err){alert('このファイルは読み込めませんでした。バックアップ用のJSONファイルをお選びください。');}
+      $('impFile').value='';};
+    rd.readAsText(f);});
+  $('reset').addEventListener('click',()=>{
+    if(!confirm('すべての旅程と記録を削除します。よろしいですか？'))return;
+    if(!confirm('復元できません。本当に削除しますか？'))return;
+    const t=newTripObj('旅程1');
+    db={v:3,curs:DEFCURS.slice(),live:false,disp:'JPY',activeId:t.id,trips:[t]};
+    saveDb(); view='detail'; render();});
+}
+
+/* ---------- CSV ---------- */
+const q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
 function dl(text,name,type){
   const url=URL.createObjectURL(new Blob([text],{type:type||'text/csv'}));
-  const a=document.createElement('a');a.href=url;a.download=name;a.click();URL.revokeObjectURL(url);
+  const a=document.createElement('a');a.href=url;a.download=name;
+  document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
 }
 function csvRows(t){
   return t.items.map(i=>[t.name,i.phase==='pre'?'旅行前':'旅行中',i.date,i.name,i.cat,i.cur,
@@ -585,64 +701,25 @@ function csvRows(t){
     db.live?ym():(i.fxMonth||''),i.memo].map(q).join(','));
 }
 const CSVHEAD='旅程,区分,日付,項目,カテゴリ,通貨,金額（現地）,レート,換算額,基準通貨,レート適用月,メモ\n';
-csv.onclick=()=>{
-  const t=trip(), v=totals(t);
-  const line=(l,n)=>'\n'+[t.name,'','',l,'','','',''].map(q).join(',')+','+q(Math.round(n*100)/100)+','+q(t.base)+',,';
-  dl('\ufeff'+CSVHEAD+csvRows(t).join('\n')+line('旅行前合計',v.pre)+line('旅行中合計',v.trip)+
-    line('総支出',v.total)+line('残予算',v.left),(t.name||'旅行予算')+'.csv');
-};
-csvAll.onclick=()=>{
-  let out=CSVHEAD;
-  sortedTrips().forEach(t=>{
-    const v=totals(t);
-    out+=csvRows(t).join('\n')+'\n'+[t.name,'','','【小計】総支出','','','',''].map(q).join(',')+
-      ','+q(Math.round(v.total*100)/100)+','+q(t.base)+',,\n';
-  });
-  dl('\ufeff'+out,'全旅程_旅行予算.csv');
-};
-expJson.onclick=()=>dl(JSON.stringify({db,rates:R,exportedAt:new Date().toISOString()},null,2),
-  '旅行予算_バックアップ_'+today()+'.json','application/json');
-impBtn.onclick=()=>impFile.click();
-impFile.onchange=e=>{
-  const f=e.target.files[0]; if(!f)return;
-  const rd=new FileReader();
-  rd.onload=()=>{
-    try{
-      const j=JSON.parse(rd.result);
-      const d=j.db||j;
-      if(!d||!d.trips)throw 0;
-      if(!confirm('バックアップを読み込みます。現在のデータは上書きされます。よろしいですか？'))return;
-      db=Object.assign({v:3,curs:DEFCURS.slice(),live:false,disp:'JPY',activeId:'',trips:[]},d);
-      if(j.rates&&j.rates.rates){R=j.rates;saveRates();}
-      saveDb(); view='list'; render();
-      alert('読み込みが完了しました（旅程 '+db.trips.length+'件）。');
-    }catch(err){alert('このファイルは読み込めませんでした。バックアップ用のJSONファイルをお選びください。');}
-    impFile.value='';
-  };
-  rd.readAsText(f);
-};
-reset.onclick=()=>{
-  if(!confirm('すべての旅程と記録を削除します。よろしいですか？'))return;
-  if(!confirm('復元できません。本当に削除しますか？'))return;
-  const t=newTripObj('旅程1');
-  db={v:3,curs:DEFCURS.slice(),live:false,disp:'JPY',activeId:t.id,trips:[t]};
-  saveDb(); view='detail'; render();
-};
 
 /* ---------- 起動 ---------- */
-setDefaultDate();
-view=db.trips.length>1?'list':'detail';
-render();
-if(R.month!==ym())fetchRates();
+try{
+  db=loadDb(); R=loadRates();
+  bind();
+  setDefaultDate();
+  view=db.trips.length>1?'list':'detail';
+  render();
+  if(R.month!==ym())fetchRates();
+}catch(e){showErr(e.message);}
 </script>
 
 <script>
-/* ===== PWA：起動パラメータ・インストール・更新通知 ===== */
+/* ===== PWA：インストール・更新通知（file:// では無効） ===== */
 (function(){
   try{
     const p=new URLSearchParams(location.search).get('v');
     if(p==='list'&&typeof render==='function'){ view='list'; render(); }
-    if(p==='new'&&typeof newTrip!=='undefined'&&newTrip.onclick){ newTrip.onclick(); }
+    if(p==='new'){ const b=document.getElementById('newTrip'); if(b)b.click(); }
     if(p&&history.replaceState)history.replaceState(null,'',location.pathname);
   }catch(e){}
 
@@ -654,20 +731,20 @@ if(R.month!==ym())fetchRates();
     bar.classList.add('show'); document.body.classList.add('hasbar');
   }
   function hideBar(){bar.classList.remove('show');document.body.classList.remove('hasbar');action=null;}
-  go.onclick=()=>{const f=action;hideBar();if(f)f();};
-  no.onclick=hideBar;
+  go.addEventListener('click',()=>{const f=action;hideBar();if(f)f();});
+  no.addEventListener('click',hideBar);
 
-  let prompt=null;
+  let installEvt=null;
   addEventListener('beforeinstallprompt',e=>{
-    e.preventDefault(); prompt=e;
+    e.preventDefault(); installEvt=e;
     if(sessionStorage.getItem('pwaHide'))return;
     showBar('ホーム画面に追加すると、オフラインでも使えます。','インストール',async()=>{
       sessionStorage.setItem('pwaHide','1');
-      try{ await prompt.prompt(); await prompt.userChoice; }catch(e){}
-      prompt=null;
+      try{ await installEvt.prompt(); await installEvt.userChoice; }catch(e){}
+      installEvt=null;
     });
   });
-  addEventListener('appinstalled',()=>{prompt=null;hideBar();});
+  addEventListener('appinstalled',()=>{installEvt=null;hideBar();});
 
   if('serviceWorker' in navigator&&location.protocol!=='file:'){
     let reloading=false;
