@@ -1,0 +1,24 @@
+{
+  "name": "旅行予算マネージャー",
+  "short_name": "旅行予算",
+  "description": "複数旅程の予算・旅行前支払い・旅行中支出を多通貨で記録して自動集計します。",
+  "lang": "ja",
+  "dir": "ltr",
+  "start_url": "./?source=pwa",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui", "browser"],
+  "orientation": "any",
+  "background_color": "#f5f6f8",
+  "theme_color": "#1f2933",
+  "categories": ["travel", "finance", "productivity"],
+  "icons": [
+    { "src": "./icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "./icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "旅程一覧", "short_name": "一覧", "url": "./?v=list" },
+    { "name": "新規旅程を作成", "short_name": "新規", "url": "./?v=new" }
+  ]
+}
