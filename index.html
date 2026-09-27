@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>旅行予算マネージャー</title>
 <link rel="manifest" href="./manifest.json">
-<meta name="theme-color" content="#1f2933">
+<meta name="theme-color" content="#faf9fa">
 <meta name="color-scheme" content="light">
 <meta name="description" content="複数旅程の予算・旅行前支払い・旅行中支出を多通貨で記録して自動集計します。">
 <link rel="icon" href="./icon-192.png" sizes="192x192" type="image/png">
@@ -85,6 +85,63 @@
   #pwaBar button.no{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.5)}
   body.hasbar{padding-bottom:80px}
   @media(display-mode:standalone){ body{padding-top:max(16px,env(safe-area-inset-top))} }
+  /* ===== スマホ向けレイアウト ===== */
+  @media(max-width:900px){
+    html{overflow-x:hidden}
+    body{padding:10px;font-size:16px;padding-bottom:max(16px,env(safe-area-inset-bottom))}
+    .wrap{max-width:none}
+    h1{font-size:19px;line-height:1.35}
+    h3{font-size:16px}
+    .card{padding:12px;margin-bottom:10px;border-radius:11px}
+    .row{gap:8px;align-items:stretch}
+    .row.between{display:block}
+    .row.between>div:first-child{margin-bottom:10px}
+    input,select,button{font-size:16px;min-height:44px}
+    button{padding:9px 12px}
+    button.mini{min-height:36px;padding:5px 9px;font-size:13px}
+    .muted{font-size:13px;line-height:1.5}
+    #tripSel{min-height:44px}
+    #viewDetail .row>div,#viewDetail .row>.f-name,#viewDetail .row>.f-amt,#viewDetail .row>.f-cur,#viewDetail .row>.f-date,#viewDetail .row>.f-cat,#viewDetail .row>.f-memo{flex:1 1 100%}
+    #viewDetail .row>button{flex:1 1 calc(50% - 4px)}
+    .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:10px}
+    .stat{padding:10px}.stat .n{font-size:18px;overflow-wrap:anywhere}
+    .tabs{gap:4px}.tabs button{flex:1 1 0;padding:8px 5px;font-size:14px}
+    #viewList .card,#viewDetail>.card{overflow-x:auto;-webkit-overflow-scrolling:touch}
+    table{min-width:620px;font-size:13px}th,td{padding:8px 6px}
+    #pwaBar{justify-content:flex-start;padding:10px 12px;padding-bottom:max(10px,env(safe-area-inset-bottom))}
+    #pwaMsg{flex:1 1 100%}#pwaBar button{min-height:40px}
+    body.hasbar{padding-bottom:125px}
+    .flight-grid{grid-template-columns:1fr!important}.flight-grid label{font-size:13px}
+    .flight-ticket{padding:10px}.flight-ticket h4{font-size:16px}
+    .flight-actions{gap:6px}.flight-actions a,.flight-actions button{flex:1 1 auto}
+    .flight-route{min-width:280px}
+  }
+  /* 旅のしおりらしい、現在地と予定をすぐ見渡せるモバイル表現 */
+  @media(max-width:900px){
+    :root{--bg:#eef4fb;--card:#fff;--line:#dce6f2;--txt:#26364b;--sub:#66768a;--pre:#3e76d4;--trip:#e36b43;--ok:#27946a;--ng:#c64343}
+    body{background:linear-gradient(180deg,#e4effc 0,#eef4fb 230px,#f5f8fc 100%)}
+    .wrap>.card:first-of-type{background:linear-gradient(135deg,#335fbd,#4c8fe5);border:0;color:#fff;box-shadow:0 8px 24px rgba(45,91,169,.2)}
+    .wrap>.card:first-of-type .muted,.wrap>.card:first-of-type label{color:rgba(255,255,255,.82)}
+    .wrap>.card:first-of-type h1{font-size:21px;letter-spacing:.02em}
+    .wrap>.card:first-of-type select{border:0;background:rgba(255,255,255,.96);color:var(--txt)}
+    .wrap>.card:first-of-type .row:last-child{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+    .wrap>.card:first-of-type .row:last-child>div{grid-column:1 / -1}
+    .wrap>.card:first-of-type button{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.55);color:#fff}
+    .wrap>.card:first-of-type #newTrip{background:#fff;color:#315ea9;border-color:#fff}
+    #viewDetail>.grid{padding:0;background:none;border:0;gap:9px}
+    .stat{border:0;border-radius:14px;box-shadow:0 3px 12px rgba(56,88,122,.08)}
+    .stat:nth-child(1){grid-column:1 / -1;background:linear-gradient(100deg,#fff,#eef6ff)}
+    .stat .n{font-weight:750;letter-spacing:-.04em}
+    #viewDetail>.card{border-radius:14px;box-shadow:0 3px 12px rgba(56,88,122,.06)}
+    .tabs{background:#edf2f7;padding:4px;border-radius:12px;margin-bottom:14px}
+    .tabs button{border:0;background:transparent;border-radius:9px;color:#6a7b90}
+    .tabs button.on{background:#fff;color:#315ea9;box-shadow:0 2px 6px rgba(48,84,125,.12)}
+    .bar{height:8px;background:#e8edf3}
+    #dTitle{font-size:17px}
+    .flight-card{background:linear-gradient(145deg,#fff,#f5f9ff)}
+    .flight-ticket{border-left-width:4px;border-radius:12px;box-shadow:0 2px 8px rgba(46,99,180,.08)}
+    #pwaBar{background:#263f67;border-radius:16px 16px 0 0;box-shadow:0 -4px 18px rgba(22,48,83,.22)}
+  }
 </style>
 </head>
 <body>
@@ -132,7 +189,7 @@
 
   <!-- ============ 旅程詳細 ============ -->
   <div id="viewDetail">
-    <div class="card">
+    <div class="card" id="tripSettings">
       <div class="row between" style="margin-bottom:10px">
         <h3 id="dTitle">旅程の設定</h3>
         <div class="row">
@@ -153,8 +210,8 @@
       <div class="muted" style="margin-top:4px">※ 基準通貨は選んだ時点で即反映されます（保存ボタン不要）</div>
     </div>
 
-    <div class="card">
-      <h3>為替レート（月1回更新・全旅程で共通）</h3>
+    <div class="card" id="rateCard">
+      <h3>為替レート（月1回更新・登録通貨のみ表示）</h3>
       <div class="fxbox" id="fxBox">
         <div><div id="fxStatus" class="muted"></div><div id="rateMsg" class="muted"></div></div>
         <div class="row" style="align-items:center">
@@ -162,11 +219,22 @@
           <button class="sub" id="fxToggle">レート表</button>
         </div>
       </div>
+      <div class="row" id="fxCalc" style="margin-top:12px">
+        <div style="flex:1 1 120px"><label>金額</label><input id="fxCalcAmt" type="number" min="0" step="any" value="100"></div>
+        <div style="flex:1 1 110px"><label>換算元</label><select id="fxCalcFrom"></select></div>
+        <button class="sub" id="fxCalcSwap" type="button" aria-label="通貨を入替">⇄</button>
+        <div style="flex:1 1 110px"><label>換算先</label><select id="fxCalcTo"></select></div>
+        <div style="flex:2 1 200px"><label>換算結果</label><div id="fxCalcOut" class="fxbox" style="min-height:44px;justify-content:flex-start">-</div></div>
+      </div>
       <div id="fxPanel" hidden style="margin-top:12px">
         <table class="fxtbl">
-          <thead><tr><th>通貨</th><th class="num">レート（手入力可）</th><th></th></tr></thead>
+          <thead><tr><th>通貨</th><th class="num">1通貨あたりのJPY換算額（手入力可）</th><th></th></tr></thead>
           <tbody id="fxBody"></tbody>
         </table>
+        <div class="row" style="margin-top:10px">
+          <div style="flex:1 1 160px"><label>現地通貨を追加</label><select id="rateAddCur"></select></div>
+          <button class="sub" id="addRateCur">レート表へ追加</button>
+        </div>
         <div class="row" style="margin-top:10px">
           <div style="flex:0 1 120px"><label>通貨コード</label><input id="newCode" placeholder="PHP" maxlength="3"></div>
           <div style="flex:1 1 150px"><label>1通貨あたりの基準通貨額</label><input id="newRate" type="number" min="0" step="0.0001" placeholder="2.6"></div>
@@ -176,19 +244,21 @@
       </div>
     </div>
 
-    <div class="grid">
+    <div class="grid" id="budgetSummary">
       <div class="stat"><label>総予算</label><div class="n" id="sBudget">-</div></div>
-      <div class="stat pre"><label>旅行前 支払い済み 合計</label><div class="n" id="sPre">-</div>
+      <div class="stat pre sumcard" data-sum="pre" role="button" tabindex="0"><label>旅行前 支払い済み 合計</label><div class="n" id="sPre">-</div>
         <div class="muted" id="cPre">0件</div></div>
-      <div class="stat trip"><label>旅行中 支出 合計</label><div class="n" id="sTrip">-</div>
+      <div class="stat trip sumcard" data-sum="trip" role="button" tabindex="0"><label>旅行中 支出 合計</label><div class="n" id="sTrip">-</div>
         <div class="muted" id="cTrip">0件</div></div>
+      <div class="stat sumcard" data-sum="all" role="button" tabindex="0"><label>総支出（旅行前＋旅行中）</label><div class="n" id="sTotal">-</div>
+        <div class="muted">この旅行の支払い合計</div></div>
       <div class="stat"><label>残予算</label><div class="n" id="sLeft">-</div>
         <div class="muted" id="sRate">消化率 0%</div></div>
     </div>
-    <div class="card"><div class="bar"><i class="b1" id="barPre"></i><i class="b2" id="barTrip"></i></div>
+    <div class="card" id="budgetBar"><div class="bar"><i class="b1" id="barPre"></i><i class="b2" id="barTrip"></i></div>
       <div class="muted" style="margin-top:6px">青＝旅行前に支払い済み ／ 橙＝旅行中の支出</div></div>
 
-    <div class="card">
+    <div class="card" id="expenseForm">
       <div class="tabs">
         <button data-ph="pre" class="on">旅行前（支払い済み）</button>
         <button data-ph="trip">旅行中（実際の支出）</button>
@@ -205,7 +275,7 @@
       <div class="muted" id="conv" style="margin-top:8px"></div>
     </div>
 
-    <div class="card">
+    <div class="card" id="expenseList">
       <h3 id="listTitle">旅行前（支払い済み）の明細</h3>
       <table>
         <thead><tr><th>日付</th><th>項目</th><th>カテゴリ</th><th class="num">金額（現地）</th>
@@ -216,7 +286,7 @@
       <div class="empty" id="empty" hidden>まだ記録がありません。上のフォームから追加してください。</div>
     </div>
 
-    <div class="card">
+    <div class="card" id="categoryBreakdown">
       <h3>カテゴリ別内訳（基準通貨換算）</h3>
       <table>
         <thead><tr><th>カテゴリ</th><th class="num">旅行前</th><th class="num">旅行中</th><th class="num">合計</th></tr></thead>
@@ -224,7 +294,7 @@
       </table>
     </div>
 
-    <div class="card">
+    <div class="card" id="currencyBreakdown">
       <h3>通貨別内訳</h3>
       <table>
         <thead><tr><th>通貨</th><th class="num">現地通貨 合計</th><th class="num">基準通貨 換算</th><th class="num">件数</th></tr></thead>
@@ -233,7 +303,7 @@
     </div>
   </div>
 
-  <div class="card">
+  <div class="card" id="dataTools" hidden aria-hidden="true">
     <h3>データ管理</h3>
     <div class="row" style="align-items:center">
       <button class="sub" id="csv">この旅程をCSV</button>
@@ -268,11 +338,13 @@ const $=id=>document.getElementById(id);
 
 const DKEY='travelBudget.v3', K2='travelBudget.v2', K1='travelBudget.v1', RKEY='travelBudget.rates.v1';
 const CATS=['交通','宿泊','食事','観光','買い物','通信','保険','その他'];
-const DEFCURS=['JPY','USD','EUR','GBP','AUD','TWD','KRW','THB','VND','CNY','HKD','SGD'];
+/* ISO 4217の通貨コード。マイナー通貨も選択でき、レートは起動時または手動更新で取得します。 */
+const DEFCURS='JPY USD EUR GBP AUD TWD KRW THB VND CNY HKD SGD AED AFN ALL AMD ANG AOA ARS AWG AZN BAM BBD BDT BGN BHD BIF BMD BND BOB BRL BSD BTN BWP BYN BZD CAD CDF CHF CLP COP CRC CUP CVE CZK DJF DKK DOP DZD EGP ERN ETB FJD FKP FOK GEL GGP GHS GIP GMD GNF GTQ GYD HNL HRK HTG HUF IDR ILS IMP INR IQD IRR ISK JEP JMD JOD KES KGS KHR KID KMF KPW KWD KYD KZT LAK LBP LKR LRD LSL LYD MAD MDL MGA MKD MMK MNT MOP MRU MUR MVR MWK MXN MYR MZN NAD NGN NIO NOK NPR NZD OMR PAB PEN PGK PHP PKR PLN PYG QAR RON RSD RUB RWF SAR SBD SCR SDG SEK SHP SLE SOS SRD SSP STN SYP SZL TJS TMT TND TOP TRY TTD TVD TZS UAH UGX UYU UZS VES VUV WST XAF XCD XDR XOF XPF YER ZAR ZMW ZWL'.split(' ');
 const SEED={JPY:1,USD:0.0068,EUR:0.0058,GBP:0.0050,AUD:0.0102,TWD:0.205,
             KRW:9.4,THB:0.216,VND:168,CNY:0.0483,HKD:0.0529,SGD:0.0087};
 const ZERO=['JPY','KRW','VND'];
-let db, R, phase='pre', view='detail';
+let db, R, phase='all', view='detail';
+const allCurs=c=>Array.from(new Set(DEFCURS.concat(c||[])));
 
 /* ---------- ユーティリティ ---------- */
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
@@ -287,12 +359,12 @@ function newTripObj(n){return {id:uid(),name:n||'新しい旅程',dest:'',start:
 /* ---------- 保存・読込・旧版からの移行 ---------- */
 function loadDb(){
   const def={v:3,curs:DEFCURS.slice(),live:false,disp:'JPY',activeId:'',trips:[]};
-  try{const d=JSON.parse(localStorage.getItem(DKEY));if(d&&d.trips)return Object.assign(def,d);}catch(e){}
+  try{const d=JSON.parse(localStorage.getItem(DKEY));if(d&&d.trips){d.curs=allCurs(d.curs);return Object.assign(def,d);}}catch(e){}
   try{
     const o=JSON.parse(localStorage.getItem(K2));
     if(o&&o.items){const t=newTripObj(o.name||'旅程1');
       t.budget=+o.budget||0;t.base=o.base||'JPY';t.items=o.items;
-      return Object.assign(def,{curs:o.curs||DEFCURS.slice(),live:!!o.live,
+      return Object.assign(def,{curs:allCurs(o.curs),live:!!o.live,
         disp:t.base,activeId:t.id,trips:[t]});}
   }catch(e){}
   try{
@@ -387,13 +459,18 @@ function renderRates(){
   $('fxStatus').innerHTML='基準通貨：<b>'+t.base+'</b> ／ 適用月：<b>'+(R.month||'未取得')+'</b> ／ 取得元：'+
     esc(R.source)+(R.updatedAt?' ／ 最終更新：'+esc(R.updatedAt):'')+
     '<br>次回の自動更新：'+nextUpdate()+(stale?'　<b style="color:#e67700">今月のレートが未取得です</b>':'');
-  $('fxBody').innerHTML=db.curs.map(c=>{
+  const rateCurs=Array.from(new Set([t.base].concat(t.rateCurs||[],t.items.map(i=>i.cur),(t.flights||[]).map(f=>f.pcur)).filter(Boolean)));
+  fillKeep($('rateAddCur'),db.curs,db.curs.find(c=>rateCurs.indexOf(c)<0)||t.base);
+  fillKeep($('fxCalcFrom'),db.curs,$('fxCalcFrom').value||t.base);
+  fillKeep($('fxCalcTo'),db.curs,$('fxCalcTo').value||'JPY');
+  $('fxBody').innerHTML=rateCurs.map(c=>{
     const f=fxTo(c,t.base);
     return '<tr><td><b>'+c+'</b></td><td class="num">'+
       (c===t.base?'<span class="muted">基準（1.0000）</span>':
       '<input type="number" min="0" step="0.0001" data-fx="'+c+'" value="'+(f==null?'':(+f.toFixed(6)))+'">')+
       '</td><td class="muted">1 '+c+' = '+(f==null?'未設定':(+f.toFixed(4))+' '+t.base)+'</td></tr>';
   }).join('');
+  window.dispatchEvent(new Event('travel-rate-rendered'));
 }
 
 /* ---------- 描画 ---------- */
@@ -485,6 +562,7 @@ function renderDetail(){
   const p=sum('pre'), r=sum('trip'), b=+t.budget||0, total=p+r, left=b-total;
   $('sBudget').textContent=b?money(b):'未設定';
   $('sPre').textContent=money(p); $('sTrip').textContent=money(r);
+  $('sTotal').textContent=money(total);
   $('cPre').textContent=t.items.filter(i=>i.phase==='pre').length+'件';
   $('cTrip').textContent=t.items.filter(i=>i.phase==='trip').length+'件';
   const sl=$('sLeft');
@@ -494,8 +572,8 @@ function renderDetail(){
   $('barPre').style.width=(b?Math.min(p/b*100,100):0)+'%';
   $('barTrip').style.width=(b?Math.min(r/b*100,Math.max(100-p/b*100,0)):0)+'%';
 
-  $('listTitle').textContent=(phase==='pre'?'旅行前（支払い済み）':'旅行中（実際の支出）')+'の明細';
-  const rows=t.items.filter(i=>i.phase===phase)
+  $('listTitle').textContent=(phase==='pre'?'旅行前（支払い済み）':phase==='trip'?'旅行中（実際の支出）':'すべての支払い')+'の明細';
+  const rows=(phase==='all'?t.items:t.items.filter(i=>i.phase===phase))
     .sort((a,b)=>String(a.date||'').localeCompare(String(b.date||'')));
   $('tbody').innerHTML=rows.map(i=>{
     const same=i.cur===t.base, used=db.live?fxTo(i.cur,t.base):(+i.fx||1);
@@ -508,7 +586,7 @@ function renderDetail(){
       '<td class="num"><button class="mini dl" data-x="'+i.id+'">削除</button></td></tr>';
   }).join('');
   $('empty').hidden=rows.length>0;
-  $('tFoot').textContent=money(sum(phase));
+  $('tFoot').textContent=money(phase==='all'?total:sum(phase));
 
   $('catBody').innerHTML=CATS.map(c=>{
     const a=t.items.filter(i=>i.cat===c&&i.phase==='pre').reduce((s,i)=>s+baseOf(i),0);
@@ -555,13 +633,17 @@ function dupTripById(id){
 }
 
 function bind(){
+  const updateFxCalc=()=>{const n=+$('fxCalcAmt').value||0,a=$('fxCalcFrom').value,b=$('fxCalcTo').value,f=fxTo(a,b);$('fxCalcOut').textContent=f==null?'レート未設定':n.toLocaleString(undefined,{maximumFractionDigits:6})+' '+a+' = '+(n*f).toLocaleString(undefined,{maximumFractionDigits:2})+' '+b;};
+  ['fxCalcAmt','fxCalcFrom','fxCalcTo'].forEach(id=>$(id).addEventListener('input',updateFxCalc));
+  $('fxCalcSwap').addEventListener('click',()=>{const a=$('fxCalcFrom'),b=$('fxCalcTo'),v=a.value;a.value=b.value;b.value=v;updateFxCalc();});
+  window.addEventListener('travel-rate-rendered',updateFxCalc);
   $('tripSel').addEventListener('change',e=>{
     db.activeId=e.target.value;view='detail';saveDb();setDefaultDate();render();});
   $('toList').addEventListener('click',()=>{
     view=view==='list'?'detail':'list';render();window.scrollTo(0,0);});
   $('newTrip').addEventListener('click',()=>{
     const cur=trip(), t=newTripObj('新しい旅程');
-    t.base=cur?cur.base:'JPY';
+    t.base='JPY';
     db.trips.push(t); db.activeId=t.id; view='detail'; saveDb(); setDefaultDate(); render();
     $('tName').focus(); $('tName').select(); window.scrollTo(0,0);});
 
@@ -580,9 +662,13 @@ function bind(){
     const need=[ob].concat(t.items.map(i=>i.cur)).filter((v,i,a)=>a.indexOf(v)===i);
     const miss=need.filter(c=>fxTo(c,nb)==null);
     if(miss.length){
-      alert('次の通貨のレートが未設定のため変更できません：'+miss.join(', ')+
-        '\n\n「今すぐ更新」を実行するか、「レート表」で手入力してください。');
-      $('tBase').value=ob; return;
+      $('tBase').value=ob;
+      $('rateMsg').textContent='必要なレートを自動取得中…';
+      fetchRates().then(()=>{
+        if(need.every(c=>fxTo(c,nb)!=null)){$('tBase').value=nb;$('tBase').dispatchEvent(new Event('change'));}
+        else $('rateMsg').textContent='レートを自動取得できませんでした。通信環境をご確認ください。';
+      });
+      return;
     }
     const fb=fxTo(ob,nb);
     if(t.items.length||t.budget){
@@ -620,12 +706,18 @@ function bind(){
           cur=$('iCur').value, f=fxTo(cur,t.base);
     if(!nm||!(amt>=0)){alert('項目名と金額を入力してください');return;}
     if(f==null){alert(cur+' のレートが未設定です。「レート表」で設定してください。');return;}
-    t.items.push({id:uid(),phase:phase,date:$('iDate').value,name:nm,cat:$('iCat').value,
+    t.items.push({id:uid(),phase:phase==='all'?'pre':phase,date:$('iDate').value,name:nm,cat:$('iCat').value,
       amount:amt,cur:cur,fx:f,baseAmt:amt*f,fxMonth:R.month||ym(),memo:$('iMemo').value.trim()});
     saveDb(); $('iName').value='';$('iAmt').value='';$('iMemo').value='';
     $('iName').focus(); render();});
   $('iAmt').addEventListener('input',renderConv);
-  $('iCur').addEventListener('change',renderConv);
+  $('iCur').addEventListener('change',e=>{
+    const t=trip(), c=e.target.value;
+    t.rateCurs=Array.isArray(t.rateCurs)?t.rateCurs:[];
+    if(c&&t.rateCurs.indexOf(c)<0){t.rateCurs.push(c);saveDb();}
+    if(!R.rates[c])fetchRates();
+    renderRates();renderConv();
+  });
   $('tbody').addEventListener('click',e=>{
     const id=e.target.dataset.x;
     if(id&&confirm('この記録を削除しますか？')){
@@ -640,6 +732,13 @@ function bind(){
     if(!(v>0)){alert('0より大きい数値を入力してください');render();return;}
     R.rates[c]=R.rates[trip().base]/v; R.source='手動設定'; R.month=ym();
     R.updatedAt=new Date().toLocaleString('ja-JP'); saveRates(); render();});
+  $('addRateCur').addEventListener('click',()=>{
+    const t=trip(),c=$('rateAddCur').value;
+    t.rateCurs=Array.isArray(t.rateCurs)?t.rateCurs:[];
+    if(c&&t.rateCurs.indexOf(c)<0)t.rateCurs.push(c);
+    saveDb();renderRates();
+    if(c&&!R.rates[c])fetchRates();
+  });
   $('addCur').addEventListener('click',()=>{
     const code=$('newCode').value.trim().toUpperCase(), v=+$('newRate').value;
     if(!/^[A-Z]{3}$/.test(code)){alert('通貨コードは英字3文字で入力してください（例：PHP）');return;}
@@ -674,6 +773,7 @@ function bind(){
         if(!d||!d.trips)throw new Error('形式が違います');
         if(!confirm('バックアップを読み込みます。現在のデータは上書きされます。よろしいですか？'))return;
         db=Object.assign({v:3,curs:DEFCURS.slice(),live:false,disp:'JPY',activeId:'',trips:[]},d);
+        db.curs=allCurs(db.curs);
         if(j.rates&&j.rates.rates){R=j.rates;saveRates();}
         saveDb(); view='list'; render();
         alert('読み込みが完了しました（旅程 '+db.trips.length+'件）。');
@@ -709,7 +809,7 @@ try{
   setDefaultDate();
   view=db.trips.length>1?'list':'detail';
   render();
-  if(R.month!==ym())fetchRates();
+  if(R.month!==ym()||db.curs.some(c=>R.rates[c]==null))fetchRates();
 }catch(e){showErr(e.message);}
 </script>
 
@@ -746,6 +846,15 @@ try{
   });
   addEventListener('appinstalled',()=>{installEvt=null;hideBar();});
 
+  // iPhone/iPad はブラウザ側のインストール確認を呼び出せないため、手順だけ案内する。
+  const isiOS=/iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  const standalone=window.matchMedia('(display-mode: standalone)').matches || navigator.standalone===true;
+  if(isiOS&&!standalone&&location.protocol!=='file:'&&!sessionStorage.getItem('iosPwaHide')){
+    showBar('Safariの共有ボタンから「ホーム画面に追加」を選ぶと、アプリとして使えます。','わかった',
+      ()=>sessionStorage.setItem('iosPwaHide','1'));
+  }
+
   if('serviceWorker' in navigator&&location.protocol!=='file:'){
     let reloading=false;
     navigator.serviceWorker.addEventListener('controllerchange',()=>{
@@ -775,5 +884,15 @@ try{
   }
 })();
 </script>
+<script src="./flight-tools.js"></script>
+<script src="./app-menu.js"></script>
+<script src="./email-ticket-parser.js"></script>
+<script src="./baggage-display.js"></script>
+<script src="./flight-form-collapse.js"></script>
+<script src="./feature-page.js"></script>
+<script src="./feature-page-fix.js"></script>
+<script src="./split-tool.js"></script>
+<script src="./budget-breakdowns.js"></script>
+<script src="./budget-switcher.js"></script>
 </body>
 </html>

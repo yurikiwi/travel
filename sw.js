@@ -1,11 +1,28 @@
 /* 旅行予算マネージャー Service Worker
    ※ index.html を更新したら CACHE の数字を必ず上げてください */
-const CACHE = 'travel-budget-v1';
+const CACHE = 'travel-budget-v55';
 
 const ASSETS = [
   './',
   './index.html',
+  './flight-tools.js',
+  './app-menu.js',
+  './email-ticket-parser.js',
+  './baggage-display.js',
+  './flight-form-collapse.js',
+  './feature-page.js',
+  './feature-page-fix.js',
+  './split-tool.js',
+  './budget-breakdowns.js',
+  './budget-switcher.js',
+  './itinerary.html',
+  './itinerary.js',
+  './packing.html',
+  './packing.js',
+  './packing-custom.js',
+  './packing-optional.js',
   './manifest.json',
+  './app-icon.svg',
   './icon-192.png',
   './icon-512.png',
   './icon-512-maskable.png',
